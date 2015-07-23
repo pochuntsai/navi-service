@@ -21,6 +21,7 @@ namespace NaviClient
         string Robot_X = "", Robot_Y = "", Robot_Compass = "";
         string CornerNum = "", Corner1_X = "", Corner1_Y = ""; 
         System.Timers.Timer UpdateCoordinateTimer, UpdateMsgTimer;
+        string NavServiceMsg = "";
 
         protected override void OnCreate(Bundle bundle)
         {
@@ -31,38 +32,63 @@ namespace NaviClient
 
             // Get our button from the layout resource,
             // and attach an event to it
-            Button btnUp = FindViewById<Button>(Resource.Id.button1);
-            Button btnDown = FindViewById<Button>(Resource.Id.button2);
-            Button btnLeft = FindViewById<Button>(Resource.Id.button3);
-            Button btnRight = FindViewById<Button>(Resource.Id.button4);
-            Button btnUL = FindViewById<Button>(Resource.Id.button5);
-            Button btnUR = FindViewById<Button>(Resource.Id.button6);
-            Button btnBL = FindViewById<Button>(Resource.Id.button7);
-            Button btnBR = FindViewById<Button>(Resource.Id.button8);
-            Button btnSemiGo = FindViewById<Button>(Resource.Id.SemiGoButton);
-            Button btnSemiSet = FindViewById<Button>(Resource.Id.SemiSetButton);
-            Button btnSemiStop = FindViewById<Button>(Resource.Id.SemiStopButton);
-            Button btnAutoSet = FindViewById<Button>(Resource.Id.AutoSetButton);
-            Button btnAutoStop = FindViewById<Button>(Resource.Id.AutoStopButton);
-            
-            EditText editSemiX = FindViewById<EditText>(Resource.Id.editSemiX);
-            EditText editSemiY = FindViewById<EditText>(Resource.Id.editSemiY);
-            EditText editAutoX1 = FindViewById<EditText>(Resource.Id.editAutoX1);
-            EditText editAutoY1 = FindViewById<EditText>(Resource.Id.editAutoY1);
-            EditText editAutoStopTime1 = FindViewById<EditText>(Resource.Id.editAutoStopTime1);
-            EditText editAutoX2 = FindViewById<EditText>(Resource.Id.editAutoX2);
-            EditText editAutoY2 = FindViewById<EditText>(Resource.Id.editAutoY2);
-            EditText editAutoStopTime2 = FindViewById<EditText>(Resource.Id.editAutoStopTime2);
-            EditText editSchedule = FindViewById<EditText>(Resource.Id.editAutoSchedule);
+            Button btnUp = this.FindViewById<Button>(Resource.Id.button1);
+            Button btnDown = this.FindViewById<Button>(Resource.Id.button2);
+            Button btnLeft = this.FindViewById<Button>(Resource.Id.button3);
+            Button btnRight = this.FindViewById<Button>(Resource.Id.button4);
+            Button btnUL = this.FindViewById<Button>(Resource.Id.button5);
+            Button btnUR = this.FindViewById<Button>(Resource.Id.button6);
+            Button btnBL = this.FindViewById<Button>(Resource.Id.button7);
+            Button btnBR = this.FindViewById<Button>(Resource.Id.button8);
+            Button btnSemiGo = this.FindViewById<Button>(Resource.Id.SemiGoButton);
+            Button btnSemiSet = this.FindViewById<Button>(Resource.Id.SemiSetButton);
+            Button btnSemiStop = this.FindViewById<Button>(Resource.Id.SemiStopButton);
+            Button btnAutoSet = this.FindViewById<Button>(Resource.Id.AutoSetButton);
+            Button btnAutoStop = this.FindViewById<Button>(Resource.Id.AutoStopButton);
+            Button btnUpdate = this.FindViewById<Button>(Resource.Id.button9); ;
+
+            EditText editSemiX = this.FindViewById<EditText>(Resource.Id.editSemiX);
+            EditText editSemiY = this.FindViewById<EditText>(Resource.Id.editSemiY);
+            EditText editAutoX1 = this.FindViewById<EditText>(Resource.Id.editAutoX1);
+            EditText editAutoY1 = this.FindViewById<EditText>(Resource.Id.editAutoY1);
+            EditText editAutoStopTime1 = this.FindViewById<EditText>(Resource.Id.editAutoStopTime1);
+            EditText editAutoX2 = this.FindViewById<EditText>(Resource.Id.editAutoX2);
+            EditText editAutoY2 = this.FindViewById<EditText>(Resource.Id.editAutoY2);
+            EditText editAutoStopTime2 = this.FindViewById<EditText>(Resource.Id.editAutoStopTime2);
+            EditText editSchedule = this.FindViewById<EditText>(Resource.Id.editAutoSchedule);
 
             UpdateCoordinateTimer = new System.Timers.Timer();
             UpdateCoordinateTimer.Interval = 1000;
             UpdateCoordinateTimer.Elapsed += new System.Timers.ElapsedEventHandler(UpdateCoordinateHandler);
             UpdateCoordinateTimer.Stop();
 
-            txtCoordinate = FindViewById<TextView>(Resource.Id.textView15);
-            txtMessage = FindViewById<TextView>(Resource.Id.textView17);
-                        
+            UpdateMsgTimer = new System.Timers.Timer();
+            UpdateMsgTimer.Interval = 1000;
+            UpdateMsgTimer.Elapsed += new System.Timers.ElapsedEventHandler(UpdateMsgHandler);
+            UpdateMsgTimer.Start();
+                       
+            txtCoordinate = this.FindViewById<TextView>(Resource.Id.textView15);
+            txtMessage = this.FindViewById<TextView>(Resource.Id.textView17);
+
+            btnUpdate.Click += delegate
+            {
+                if (isBound)
+                {
+
+                    Message message = Message.Obtain();
+                    Bundle b = new Bundle();
+                    b.PutString("Update", "1");
+                    message.Data = b;
+                    message.What = 0;
+                    //Added by Brian: set message.Replyto
+                    message.ReplyTo = naviClientMessager;
+                    naviServiceMessenger.Send(message);
+                    Log.Debug(Tag, "[NavClient]Send update coordinate messsage to server!!!");
+                }
+                else
+                    Log.Debug(Tag, "Client can't bound to Navigation Service!!!");
+            };
+            
             btnAutoStop.Click += delegate
             {
                 if (isBound)
@@ -324,12 +350,13 @@ namespace NaviClient
 
         private void UpdateMsgHandler(object sender, EventArgs e)
         {
-            //txtCoordinate.Text = Robot_X + ", " + Robot_Y;
+            RunOnUiThread(() => txtMessage.Text = NavServiceMsg);
         }
 
         private void UpdateCoordinateHandler(object sender, EventArgs e)
         {
-            txtCoordinate.Text = Robot_X + ", " + Robot_Y;   
+            Log.Debug("Brian", "[NavClient]Update coordinate timer!! ");
+            RunOnUiThread(() => txtCoordinate.Text = Robot_X + ", " + Robot_Y);    
         }
 
         protected override void OnDestroy()
@@ -357,13 +384,19 @@ namespace NaviClient
                 activity.naviServiceMessenger = new Messenger(service);
                 activity.naviClientMessager = new Messenger(new naviClientHandler(this.activity));
                 activity.isBound = true;
+
+                Log.Debug("Brian", "[OnServiceConnected]Bound to Navigation Service!!!");
             }
 
             public void OnServiceDisconnected(ComponentName name)
             {
                 activity.naviServiceMessenger.Dispose();
+                activity.naviServiceMessenger = null;
+                activity.naviClientMessager.Dispose();
                 activity.naviClientMessager = null;
                 activity.isBound = false;
+
+                Log.Debug("Brian", "[OnServiceDisConnected]Unbound to Navigation Service!!!");
             }
         }
 
@@ -378,35 +411,42 @@ namespace NaviClient
              
             public override void HandleMessage(Message msg)
             {
-                //Log.Debug("DemoMessengerService", msg.What.ToString());
+                Log.Debug("Brian", "[NaviClient]Receive message(what) from service:" + msg.What.ToString());
 
                 switch (msg.What)
                 {
                     case 0:
                         activity.Robot_X = msg.Data.GetString("X");
                         activity.Robot_Y = msg.Data.GetString("Y");
+                        Log.Debug("Brian", "[NaviClient]Robot_X=" +  activity.Robot_X + ", Robot_Y=" +  activity.Robot_Y);
                         activity.UpdateCoordinateTimer.Start();
+
                         break;
                     case 21:
-                        activity.txtMessage.Text = "[SemiAutoMode] Target is not walkable!!";
+                        activity.NavServiceMsg = "[SemiAutoMode] Target is not walkable!!";
                         break;
                     case 22:
                         activity.CornerNum = msg.Data.GetString("CornerNum");
-                        activity.Corner1_X = msg.Data.GetString("Corner1_X");
-                        activity.Corner1_Y = msg.Data.GetString("Corner1_Y");
-                        activity.txtMessage.Text = "[SemiAutoMode] CornerNum=" + activity.CornerNum + ", Corner1_X=" + activity.Corner1_X + ", Corner1_Y=" + activity.Corner1_Y;
+                        if (Convert.ToInt16(activity.CornerNum) != 0)
+                        {
+                            activity.Corner1_X = msg.Data.GetString("Corner1_X");
+                            activity.Corner1_Y = msg.Data.GetString("Corner1_Y");
+                            activity.NavServiceMsg = "[SemiAutoMode] CornerNum=" + activity.CornerNum + ", Corner1_X=" + activity.Corner1_X + ", Corner1_Y=" + activity.Corner1_Y;
+                        }
+                        else
+                            activity.NavServiceMsg = "[SemiAutoMode] CornerNum=0";
                         break;
                     case 24:
-                        activity.txtMessage.Text = "[SemiAutoMode]Robot reachs destination!!";
+                        activity.NavServiceMsg = "[SemiAutoMode]Robot reachs destination!!";
                         break;
                     case 31:
-                        activity.txtMessage.Text = "[AutoMode] Target walkable=" + msg.Data.GetString("Walkable"); 
+                        activity.NavServiceMsg = "[AutoMode] Target walkable=" + msg.Data.GetString("Walkable"); 
                         break;
                     case 32:
-                        activity.txtMessage.Text = "[AutoMode] Start auto navigation!!";
+                        activity.NavServiceMsg = "[AutoMode] Start auto navigation!!";
                         break;
                     case 33:
-                        activity.txtMessage.Text = "[AutoMode] Auto navigation is done!!";
+                        activity.NavServiceMsg = "[AutoMode] Auto navigation is done!!";
                         break;
 
                 }

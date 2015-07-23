@@ -80,12 +80,12 @@ namespace Trilateration_Android
             ManModeTimer.Elapsed += new System.Timers.ElapsedEventHandler(ManModeTimerHandler);
             ManModeTimer.Stop();
             //Read config from default.set and process map
-            ProcessMap();          
-            //Connect beacon and start sendcoordinate timer and Th
+            ProcessConfigMap();
+            //Connect beacon and start sendcoordinatetimer and TagDataRecvTimer
             ConnectBeacon();
         }
 
-        private void ProcessMap()
+        private void ProcessConfigMap()
         {
             bool success;
             string file1 = path + @"/default.set";
@@ -470,7 +470,7 @@ namespace Trilateration_Android
                     myTag.X = myEKF.tagX;
                     myTag.Y = myEKF.tagY;
                     //Log.Debug("Brian", "tag= " + myTag.X.ToString() + " " + myTag.Y.ToString());
-                    Log.Debug("Brian", "interval= " + myEKF.dT.ToString("f1"));
+                    //Log.Debug("Brian", "interval= " + myEKF.dT.ToString("f1"));
                     // Calculate avg & stdev
                     for (int j = myTag_Old_X.Length - 1; j >= 1; j--)
                     {
@@ -498,6 +498,7 @@ namespace Trilateration_Android
         private void InitEnvParameters()
         {
             path = System.IO.Path.Combine(path, "Trilateration_Android");
+            Log.Debug("Brian", "[InitEnvParameters] path=" + path);
 
             target_total = 0;
             target_now = 1;
@@ -521,20 +522,30 @@ namespace Trilateration_Android
 
             //Create new default.set and raw.bmp anyway
             System.IO.Directory.CreateDirectory(path);
-            using (var stream = Assets.Open("default.set"))
+            Log.Debug(Tag, "[InitEnvParameter]222222222222");
+            
+            //Brian+: We can't use Assets.Open() in service 
+            /*
+            using (var stream = this.Assets.Open("default.set"))
             {
+                Log.Debug(Tag, "[InitEnvParameter]2.11111111111111111");
                 //using (FileStream fs = new FileStream(path + @"/default.set", FileMode.CreateNew))
                 using (FileStream fs = new FileStream(path + @"/default.set", FileMode.Create))
                 {
+                    Log.Debug(Tag, "[InitEnvParameter]2.222222222222222222");
                     byte[] byt = new byte[1024];
                     while ((i = stream.Read(byt, 0, byt.Length)) != 0)
                     {
+                        Log.Debug(Tag, "[InitEnvParameter]2.3333333333333333");
                         fs.Write(byt, 0, i);
+                        Log.Debug(Tag, "[InitEnvParameter]2.4444444444444444");
                     }
                     fs.Flush();
+                    Log.Debug(Tag, "[InitEnvParameter]2.55555555555555");
                 }
             }
-            using (var stream = Assets.Open("Raw.bmp"))
+            Log.Debug(Tag, "[InitEnvParameter]3333333");
+            //using (var stream = Assets.Open("Raw.bmp"))
             {
                 //using (FileStream fs = new FileStream(path + @"/Raw.bmp", FileMode.CreateNew))
                 using (FileStream fs = new FileStream(path + @"/Raw.bmp", FileMode.Create))
@@ -547,6 +558,8 @@ namespace Trilateration_Android
                     fs.Flush();
                 }
             }
+            Log.Debug(Tag, "[InitEnvParameter]4444444444");
+            */
 
             // create log file
             string logName = path + @"/" + string.Format("log{0:s}", DateTime.Now) + ".txt";       // Set the file name
@@ -637,7 +650,7 @@ namespace Trilateration_Android
                 tag_x = Convert.ToInt32(myTag.Avg.X / pad2cm_x);
                 tag_y = Convert.ToInt32(myTag.Avg.Y / pad2cm_y);
                 compass = Convert.ToInt32(myVehicle.compass);
-
+                Log.Debug("Brian", "[NaviService]tag_x=" + tag_x + ", tag_y=" + tag_y + ", compass=" + compass);
                 if (clientMessager != null)
                 {
                     Message message = Message.Obtain();
@@ -649,7 +662,8 @@ namespace Trilateration_Android
                     message.Data = b;
                     clientMessager.Send(message);
                 }
-
+                else
+                    Log.Debug("Brian", "[NaviService]clientMessager == NULL!!!!");
             }
        }
 
@@ -764,8 +778,8 @@ namespace Trilateration_Android
             //MainWidth = this.linearContent.Width;
             //MainHeight = this.linearContent.Height;
             //Brian+: Need to know original values of linearContent.Width and linearContent.Height
-            MainWidth = 640;
-            MainHeight = 359;
+            MainWidth = 666;
+            MainHeight = 382;
 
             screen2cm_x = (Single)cfg.MapWidth / (Single)MainWidth;
             screen2cm_y = (Single)cfg.MapHeight / (Single)MainHeight;
@@ -913,6 +927,7 @@ namespace Trilateration_Android
             if (walkable != 0)
             {
                 //Can not walk, send message to pad
+                Log.Debug("Brian", "[NavService]Can not walk!!");
                 if ((Mode == 2) && (clientMessager != null))
                 {
                     Message message = Message.Obtain();
@@ -921,6 +936,7 @@ namespace Trilateration_Android
                     message.What = 21;
                     message.Data = bun;
                     clientMessager.Send(message);
+                    Log.Debug("Brian", "[NavService][Semi]Send can't walk message to client!!");
                 }
                 else if((Mode == 3) && (clientMessager != null))
                 {
@@ -930,6 +946,7 @@ namespace Trilateration_Android
                     message.What = 31;
                     message.Data = bun;
                     clientMessager.Send(message);
+                    Log.Debug("Brian", "[NavService][Auto]Send can't walk message to client!!");
                 }    
            }
            else
@@ -1020,7 +1037,7 @@ namespace Trilateration_Android
                     {
                         tmpId = tagbuff[14] - 49;
                         anchor[tmpId].Measurement = tmpInt3;
-                        Log.Debug("Brian", "meas=" + tmpId.ToString() + ", " + anchor[tmpId].Range.ToString());
+                        //Log.Debug("Brian", "meas=" + tmpId.ToString() + ", " + anchor[tmpId].Range.ToString());
                     }
                 }
                 else
@@ -1083,7 +1100,7 @@ namespace Trilateration_Android
 
             public override void HandleMessage(Message msg)
             {
-                Log.Debug (parent.Tag, "Message(what) from client: " + msg.What.ToString ());
+                Log.Debug (parent.Tag, "[NaviService]Message(what) from client: " + msg.What.ToString ());
 
                 parent.clientMessager = msg.ReplyTo;
                 switch(msg.What)
@@ -1091,6 +1108,7 @@ namespace Trilateration_Android
                     case 0:
                         //Update coordinate info
                         parent.SendCoordinateTimer.Start();
+                        Log.Debug(parent.Tag, "[NaviService] Update coordinate timer start!!!");
                         break;
                     case 10:
                         //handle manual-mode message
@@ -1099,6 +1117,7 @@ namespace Trilateration_Android
                             parent.ManualCommand = msg.Data.GetString("Direction");
                             parent.ManualCount = 3;
                             parent.ManModeTimer.Start();
+                            Log.Debug(parent.Tag, "[NaviService]ManualCommand from client: " + parent.ManualCommand);
 
                             //Kill auto mode timer if auto mode has been set
                             if (parent.AutoModeTimer != null)
@@ -1107,13 +1126,14 @@ namespace Trilateration_Android
                         else
                         {
                             parent.ManModeTimer.Stop();
-                            Log.Debug("Brian", "pic32 open fail or robot is moving!!");
+                            Log.Debug("Brian", "[NavService]pic32 open fail or robot is moving!!");
                         }
                         break;
                     case 20:
                         //handle semi-auto set coordinate message
                         string X = msg.Data.GetString("X");
                         string Y = msg.Data.GetString("Y");
+                        Log.Debug("Brian", "[NavService]Recv semi-auto X=" + X + ", Y=" + Y);
                         parent.NaviMode = 2;
                         parent.ManModeTimer.Stop();
                         if ((X != null) && (Y != null))
