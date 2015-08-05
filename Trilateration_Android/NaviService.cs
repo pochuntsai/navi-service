@@ -1,4 +1,5 @@
-﻿using System;
+﻿#define G25_PIC32
+using System;
 using Android.App;
 using Android.OS;
 using Android.Content;
@@ -180,11 +181,12 @@ namespace Trilateration_Android
         }
         public void ConnectBeacon()
         {
-            tag_open = Uart2C.OpenUart("ttymxc2");
+            //tag_open = Uart2C.OpenUart("ttymxc2");
+            tag_open = Uart2C.OpenUart("ttymxc1"); //For G2.5
             if (tag_open > 0)
             {
                 Uart2C.SetUart(1); //0: B9600, 1:B115200, 2:B19200                    
-                Log.Debug(Tag, "Open ttymxc2 successfully, Baund Rate=115200, fd_num=" + tag_open + "\r\n");
+                Log.Debug(Tag, "Open ttymxc1 successfully, Baund Rate=115200, fd_num=" + tag_open);
 
                 SetAppearance();
 
@@ -207,7 +209,7 @@ namespace Trilateration_Android
             }
             else
             {
-                Log.Debug(Tag, "Open ttymx2 fail!!\r\n");
+                Log.Debug(Tag, "Open ttymxc1 fail!!\r\n");
             }
 
             //Brian+: TODO: check this function
@@ -216,11 +218,13 @@ namespace Trilateration_Android
 
         public void ConnectPIC32()
         {
-            pic32_open = Uart2C.OpenUart("ttymxc3");
+            //pic32_open = Uart2C.OpenUart("ttymxc3");
+            pic32_open = Uart2C.OpenUart("ttymxc2"); //For G2.5
+            
             if (pic32_open > 0)
             {
                 Uart2C.SetUart(2); //0: B9600, 1:B115200, 2:B19200                    
-                Log.Debug(Tag, "Open ttymxc3 successfully, Baund Rate=19200, fd_num=" + pic32_open + "\r\n");
+                Log.Debug(Tag, "Open ttymxc2 successfully, Baund Rate=19200, fd_num=" + pic32_open);
 
                 Pic32DataRecvTimer = new System.Timers.Timer();
                 Pic32DataRecvTimer.Interval = 100;
@@ -232,7 +236,7 @@ namespace Trilateration_Android
             }
             else
             {
-                Log.Debug(Tag, "Open ttymx3 fail!!\r\n");
+                Log.Debug(Tag, "Open ttymx2 fail!!\r\n");
             }
             
         }
@@ -650,7 +654,7 @@ namespace Trilateration_Android
                 tag_x = Convert.ToInt32(myTag.Avg.X / pad2cm_x);
                 tag_y = Convert.ToInt32(myTag.Avg.Y / pad2cm_y);
                 compass = Convert.ToInt32(myVehicle.compass);
-                Log.Debug("Brian", "[NaviService]tag_x=" + tag_x + ", tag_y=" + tag_y + ", compass=" + compass);
+                //Log.Debug("Brian", "[NaviService]tag_x=" + tag_x + ", tag_y=" + tag_y + ", compass=" + compass);
                 if (clientMessager != null)
                 {
                     Message message = Message.Obtain();
@@ -851,33 +855,50 @@ namespace Trilateration_Android
             int startindex;
             short tmpShort;
             byte[] Pic32RecvData = new byte[50];
-
+#if G25_PIC32
+            const int Pic32DataLen = 19; //Brian+: for new message format, length = 20
+#else
+            const int Pic32DataLen = 16;
+#endif    
             Pic32RecvData = Uart2C.ReceiveMsgUartByte(pic32_open);
 
             if (Pic32RecvData == null) return;
-            if (Pic32RecvData.Length < 16) return;
+            //if (Pic32RecvData.Length < 16) return;
+            if (Pic32RecvData.Length < Pic32DataLen) return;
+            //Log.Debug("Brian", "Pic32RecvData.Length=" + Pic32RecvData.Length);
             //Log.Debug("Brian", "Pic32RecvData(Convert)=" + ToHexString(Pic32RecvData));
 
             startindex = -1;
-            for (int j = 0; j < Pic32RecvData.Length - 16; j++)
+            //for (int j = 0; j < Pic32RecvData.Length - 16; j++)
+            for (int j = 0; j < Pic32RecvData.Length - Pic32DataLen; j++)
             {
-                if (Pic32RecvData[j] == 0x53 && Pic32RecvData[j + 1] == 0x20 && Pic32RecvData[j + 16] == 0x45)
+                //if (Pic32RecvData[j] == 0x53 && Pic32RecvData[j + 1] == 0x20 && Pic32RecvData[j + 16] == 0x45)
+                if (Pic32RecvData[j] == 0x53 && Pic32RecvData[j + 1] == 0x20 && Pic32RecvData[j + Pic32DataLen] == 0x45)
                 {
                     startindex = j + 1;
                     break;
                 }
             }
+            //Log.Debug("Brian", "startindex=" + startindex);
 
             if (startindex > 0)
             {
-                if ((startindex < Pic32RecvData.Length - 15) && (Pic32RecvData[startindex + 15] == 0x45))
+                //if ((startindex < Pic32RecvData.Length - 15) && (Pic32RecvData[startindex + 15] == 0x45))
+                if ((startindex < Pic32RecvData.Length - (Pic32DataLen - 1)) && (Pic32RecvData[startindex + (Pic32DataLen - 1)] == 0x45))
                 {
-                    byte[] tmpArray = new byte[15];
-                    Array.Copy(Pic32RecvData, startindex, tmpArray, 0, 15);
+                    //byte[] tmpArray = new byte[15];
+                    byte[] tmpArray = new byte[Pic32DataLen - 1];
+                    //Array.Copy(Pic32RecvData, startindex, tmpArray, 0, 15);
+                    Array.Copy(Pic32RecvData, startindex, tmpArray, 0, (Pic32DataLen - 1));
+                    //Log.Debug("Brian", "Prepare to updateALL!!");
                     myVehicle.UpdatedAll(tmpArray);
+                    //Log.Debug("Brian", "baterry=xxxx");
+                    
                 }
             }
-
+            //Log.Debug("Brian", "baterry=" + myVehicle.BatteryLevel.ToString());
+            
+            
             TowardTargets.Vehicle.Bumper = myVehicle.Bumper;
             for (int i = 0; i < 5; i++) TowardTargets.Vehicle.sonic[i] = myVehicle.sonic[i];
             //tmpString = test_count.ToString() +" D=" + myVehicle.compass.ToString() + ", Sonic=" + myVehicle.sonic[0].ToString() + "," + myVehicle.sonic[1].ToString() + "," + myVehicle.sonic[2].ToString() + "," + myVehicle.sonic[3].ToString() + "," + myVehicle.sonic[4].ToString() + "," + myVehicle.sonic[5].ToString() + "," + myVehicle.sonic[6].ToString() + ", B=" + myVehicle.Bumper.ToString();
@@ -947,6 +968,17 @@ namespace Trilateration_Android
                     message.Data = bun;
                     clientMessager.Send(message);
                     Log.Debug("Brian", "[NavService][Auto]Send can't walk message to client!!");
+                }
+                else if ((Mode == 5) && (clientMessager != null))
+                {
+                    Message message = Message.Obtain();
+                    Bundle bun = new Bundle();
+                    TargetNotWalkable = 1;
+                    bun.PutString("Walkable", "0");
+                    message.What = 55;
+                    message.Data = bun;
+                    clientMessager.Send(message);
+                    Log.Debug("Brian", "[NavService][CallCenter]Send can't walk message to client!!");
                 }    
            }
            else
@@ -996,6 +1028,17 @@ namespace Trilateration_Android
                        message.What = 22;
                        message.Data = bun;
                        clientMessager.Send(message);
+                   }
+                   else if ((Mode == 5) && (clientMessager != null))
+                   {
+                       Message message = Message.Obtain();
+                       Bundle bun = new Bundle();
+                       TargetNotWalkable = 0;
+                       bun.PutString("Walkable", "1");
+                       message.What = 55;
+                       message.Data = bun;
+                       clientMessager.Send(message);
+                       Log.Debug("Brian", "[NavService][CallCenter]Send can walk message to client!!");
                    }
                }
             }
@@ -1084,10 +1127,18 @@ namespace Trilateration_Android
 
         public override IBinder OnBind(Intent intent)
         {
-            Log.Debug("NaviMessengerService", "client bound to service");
+            Log.Debug("Brian", "client bound to service");
 
             return naviMessenger.Binder;
         }
+
+        public override Boolean OnUnbind(Intent intent)
+        {
+            Log.Debug("Brian", "client un-bound to service");
+
+            return base.OnUnbind(intent);
+        }
+
 
         class NaviHandler : Handler
         {
@@ -1100,9 +1151,9 @@ namespace Trilateration_Android
 
             public override void HandleMessage(Message msg)
             {
-                Log.Debug (parent.Tag, "[NaviService]Message(what) from client: " + msg.What.ToString ());
-
                 parent.clientMessager = msg.ReplyTo;
+                Boolean IsNullMsgr = (parent.clientMessager == null) ? true : false;
+                Log.Debug(parent.Tag, "[NaviService]Message(what) from client: " + msg.What.ToString()+" Is Msgr Null:"+IsNullMsgr.ToString());
                 switch(msg.What)
                 {
                     case 0:
@@ -1112,6 +1163,7 @@ namespace Trilateration_Android
                         break;
                     case 10:
                         //handle manual-mode message
+                        parent.NaviMode = 1;
                         if ((parent.pic32_open > 0) && (!parent.myFlag.moving))
                         {
                             parent.ManualCommand = msg.Data.GetString("Direction");
@@ -1152,10 +1204,14 @@ namespace Trilateration_Android
                         if (!parent.myFlag.moving)
                         {
                             parent.myFlag.moving = true;
+                            Log.Debug("Brian", "[NavService][23] Start semi-auto navigation!!!");
                             wr.Write(DateTime.Now.ToString("HH:mm:ss ") + "New Route");
                             wr.Write("\r\n");
                             TowardTargets.NewTask(parent.target, parent.target_total);
-                        }    
+                        }
+                        else
+                            Log.Debug("Brian", "[NavService][23] myFlag.moving==1, stop semi-auto navigation!!!");
+                            
                         break;
                     case 25:
                         //handle semi-auto stop function
@@ -1228,6 +1284,125 @@ namespace Trilateration_Android
                         parent.target_total = 0;
                         parent.target_now = 1;
                         break;
+#if G25_PIC32 
+                    case 40:
+                        //Handle LED display function
+                        if (parent.clientMessager != null)
+                        {
+                            Message message = Message.Obtain();
+                            Bundle b = new Bundle();
+                            int Battery = Convert.ToInt16(parent.myVehicle.BatteryLevel); 
+
+                            //Log.Debug("Brian", "[40]BatteryLevel=" + parent.myVehicle.BatteryLevel.ToString("X2"));
+                            Log.Debug("Brian", "[40]BatteryLevel=" + Battery.ToString());
+                            //b.PutString("Battery", parent.myVehicle.BatteryLevel.ToString("X2"));
+                            b.PutString("Battery", Battery.ToString());
+                            
+                            if (parent.myVehicle.Status != 0x02)
+                                b.PutString("Charging", "0");
+                            else
+                                b.PutString("Charging", "1");
+
+                            b.PutByte("State", (sbyte)parent.myVehicle.Error); //TODO: need check 傳佳 
+                            message.What = 41;
+                            message.Data = b;
+                            parent.clientMessager.Send(message);
+                        }
+                        break;
+                    case 50:
+                        //Handle call center ask robot status 
+                        if (parent.clientMessager != null)
+                        {
+                            Message message = Message.Obtain();
+                            Bundle b = new Bundle();
+                            int Battery = Convert.ToInt16(parent.myVehicle.BatteryLevel);
+
+                            b.PutString("Battery", Battery.ToString());
+                            if (parent.myVehicle.Status == 0x04)
+                                b.PutString("Mode", "3"); //calibration 
+                            else if (parent.myVehicle.Status == 0x02)
+                                b.PutString("Mode", "2"); //charging
+                            else if (parent.NaviMode == 2)
+                                b.PutString("Mode", "1"); //semi-auto mode
+                            else if (parent.NaviMode == 1)
+                                b.PutString("Mode", "0"); //manual mode
+                            
+                            //b.PutString("Report", parent.myVehicle.Error.ToString());
+                            b.PutByte("Report", (sbyte)parent.myVehicle.Error); 
+                            b.PutString("Busy", parent.myFlag.moving.ToString());
+                            message.What = 51;
+                            message.Data = b;
+                            parent.clientMessager.Send(message);
+                        }
+                        break;
+                    case 52:
+                        //Handle call center ask robot's coordinate and compass
+                        if (parent.clientMessager != null)
+                        {
+                            Message message = Message.Obtain();
+                            Bundle b = new Bundle();
+                            
+                            b.PutString("X", Convert.ToString((int)(parent.myTag.Avg.X / parent.pad2cm_x)));
+                            b.PutString("Y", Convert.ToString((int)(parent.myTag.Avg.Y / parent.pad2cm_y)));
+                            b.PutString("Rotation", Convert.ToString((int)(parent.myTag.Avg.X / parent.pad2cm_x)));
+                            message.What = 53;
+                            message.Data = b;
+                            parent.clientMessager.Send(message);
+                        }
+                        break;
+                    case 54:    
+                        //handle call center set target coordinate message
+                        string target_X = msg.Data.GetString("X");
+                        string target_Y = msg.Data.GetString("Y");
+                        Log.Debug("Brian", "[NavService]Recv semi-auto X=" + target_X + ", Y=" + target_Y);
+                        parent.NaviMode = 5; //Call center mode
+                        parent.ManModeTimer.Stop();
+                       
+                        if ((target_X != null) && (target_Y != null))
+                        {
+                            parent.PadTarget.X = (int)(Convert.ToInt16(target_X) * parent.pad2cm_x / parent.screen2cm_x);
+                            parent.PadTarget.Y = (int)(Convert.ToInt16(target_Y) * parent.pad2cm_y / parent.screen2cm_y);
+                            parent.GenCornerCoodinate(parent.PadTarget.X, parent.PadTarget.Y, parent.NaviMode);
+                        
+                            //Start navigation
+                            if (parent.AutoModeTimer != null)
+                                parent.AutoModeTimer.Stop();
+
+                            if ((!parent.myFlag.moving) && (parent.TargetNotWalkable==0))
+                            {
+                                parent.myFlag.moving = true;
+                                Log.Debug("Brian", "[NavService][54] Start semi-auto navigation!!!");
+                                wr.WriteLine(DateTime.Now.ToString("HH:mm:ss ") + "New Route");
+                                TowardTargets.NewTask(parent.target, parent.target_total);
+                            }
+                            else
+                                Log.Debug("Brian", "[NavService][54] myFlag.moving==1, stop semi-auto navigation!!!");
+                            
+                        }
+                        break;
+                    case 56:
+                        //handle callcenter manual-mode message
+                        parent.NaviMode = 1;
+                        if ((parent.pic32_open > 0) && (!parent.myFlag.moving))
+                        {
+                            parent.ManualCommand = msg.Data.GetString("Direction");
+                            parent.ManualCount = 3;
+                            parent.ManModeTimer.Start();
+                            Log.Debug(parent.Tag, "[NaviService][56]ManualCommand from call-center: " + parent.ManualCommand);
+
+                            //Kill auto mode timer if auto mode has been set
+                            if (parent.AutoModeTimer != null)
+                                parent.AutoModeTimer.Stop();
+                        }
+                        else
+                        {
+                            parent.ManModeTimer.Stop();
+                            Log.Debug("Brian", "[NavService]pic32 open fail or robot is moving!!");
+                        }
+                        break;
+
+
+#endif
                     default:
                         break;
                 }

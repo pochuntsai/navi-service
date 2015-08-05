@@ -1,3 +1,4 @@
+#define G25_PIC32
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +10,7 @@ using Android.OS;
 using Android.Runtime;
 using Android.Views;
 using Android.Widget;
+using Android.Util;
 
 namespace Trilateration_Android
 {
@@ -52,7 +54,12 @@ namespace Trilateration_Android
         public byte Bumper;
 		public Single V;
 		public Single W;
-		
+#if G25_PIC32
+        //Brian+: Add new status info for G2.5
+        public byte BatteryLevel;
+        public byte Status;
+        public byte Error;
+#endif
         public class_Vehicle()
         {
             p_compass = 0f;
@@ -92,6 +99,13 @@ namespace Trilateration_Android
 				sonic[i] = Raw[7 + i];
 			}
 			Bumper = Raw[14];
+#if G25_PIC32            
+            //Brian+ for parse new info for G2.5
+            BatteryLevel = Raw[15];
+            Status = Raw[16];
+            Error = Raw[17];
+            
+#endif
 		}
     }
 

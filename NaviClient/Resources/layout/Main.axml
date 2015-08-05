@@ -116,6 +116,11 @@
                 android:layout_height="55.0dp"
                 android:id="@+id/SemiStopButton"
                 android:layout_marginBottom="0.0dp" />
+            <Button
+                android:text="Update"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:id="@+id/button9" />
         </LinearLayout>
     </LinearLayout>
     <LinearLayout
@@ -245,15 +250,27 @@
         <TextView
             android:layout_width="116.0dp"
             android:layout_height="match_parent"
-            android:id="@+id/textView15" />
+            android:id="@+id/textView15"
+            android:text="1234567" />
         <TextView
             android:text="Messgae:"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:id="@+id/textView16" />
         <TextView
-            android:layout_width="492.0dp"
+            android:layout_width="679.4dp"
             android:layout_height="match_parent"
             android:id="@+id/textView17" />
+    </LinearLayout>
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="88.1dp"
+        android:id="@+id/linearLayout7">
+        <Button
+            android:text="LED"
+            android:layout_width="96.1dp"
+            android:layout_height="match_parent"
+            android:id="@+id/btnLed" />
     </LinearLayout>
 </LinearLayout>

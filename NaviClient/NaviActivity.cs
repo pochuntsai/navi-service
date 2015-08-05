@@ -45,7 +45,8 @@ namespace NaviClient
             Button btnSemiStop = this.FindViewById<Button>(Resource.Id.SemiStopButton);
             Button btnAutoSet = this.FindViewById<Button>(Resource.Id.AutoSetButton);
             Button btnAutoStop = this.FindViewById<Button>(Resource.Id.AutoStopButton);
-            Button btnUpdate = this.FindViewById<Button>(Resource.Id.button9); ;
+            Button btnUpdate = this.FindViewById<Button>(Resource.Id.button9);
+            Button btnLed = this.FindViewById<Button>(Resource.Id.btnLed);
 
             EditText editSemiX = this.FindViewById<EditText>(Resource.Id.editSemiX);
             EditText editSemiY = this.FindViewById<EditText>(Resource.Id.editSemiY);
@@ -69,6 +70,26 @@ namespace NaviClient
                        
             txtCoordinate = this.FindViewById<TextView>(Resource.Id.textView15);
             txtMessage = this.FindViewById<TextView>(Resource.Id.textView17);
+
+            btnLed.Click += delegate
+            {
+                if (isBound)
+                {
+
+                    Message message = Message.Obtain();
+                    Bundle b = new Bundle();
+                    //b.PutString("Update", "1");
+                    message.Data = b;
+                    message.What = 40;
+                    //Added by Brian: set message.Replyto
+                    message.ReplyTo = naviClientMessager;
+                    naviServiceMessenger.Send(message);
+                    Log.Debug(Tag, "[NavClient]Request LED information to server!!!");
+                }
+                else
+                    Log.Debug(Tag, "Client can't bound to Navigation Service!!!");
+            };
+            
 
             btnUpdate.Click += delegate
             {
@@ -448,7 +469,10 @@ namespace NaviClient
                     case 33:
                         activity.NavServiceMsg = "[AutoMode] Auto navigation is done!!";
                         break;
-
+                    case 41:
+                        activity.NavServiceMsg = "[LED]Battery=" + msg.Data.GetString("Battery") + ", Charging=" +
+                            msg.Data.GetString("Charging") + ", State=" + msg.Data.GetByte("State").ToString("X2");
+                        break;
                 }
                 
                 

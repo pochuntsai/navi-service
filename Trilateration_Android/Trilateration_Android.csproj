@@ -58,7 +58,6 @@
     <Compile Include="A_star.cs" />
     <Compile Include="EKFL5.cs" />
     <Compile Include="HighPerformanceCounter.cs" />
-    <Compile Include="MainActivity.cs" />
     <Compile Include="Map.cs" />
     <Compile Include="MyClass.cs" />
     <Compile Include="NaviService.cs" />
